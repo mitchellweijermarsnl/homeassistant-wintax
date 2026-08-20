@@ -12,9 +12,11 @@ Confirmed login flow (from the public login page):
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 import asyncio
 import logging
 import re
+import ssl
 from typing import Any
 from urllib.parse import urljoin
 
@@ -48,6 +50,20 @@ _REDACT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# The portal serves a valid Sectigo cert for *.customer.wintax.nl but omits the
+# intermediate CA. Browsers fetch it via AIA; Home Assistant on Linux/certifi
+# does not, which surfaces as "Could not connect".
+_INTERMEDIATE_CA_PATH = Path(__file__).resolve().parent / "sectigo_r36.pem"
+
+
+def create_wintax_ssl_context() -> ssl.SSLContext:
+    """Return a TLS context that can verify the incomplete WinTax chain."""
+    context = ssl.create_default_context()
+    if _INTERMEDIATE_CA_PATH.exists():
+        context.load_verify_locations(cafile=str(_INTERMEDIATE_CA_PATH))
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    return context
+
 
 class WinTaxError(Exception):
     """Base error for WinTax client failures."""
@@ -77,6 +93,8 @@ class WinTaxClient:
         self._password = password
         self._base_url = base_url.rstrip("/")
         self._session_id: str | None = None
+        self._ssl: ssl.SSLContext | bool = create_wintax_ssl_context()
+        self._ssl_fallback_used = False
 
     @property
     def session_id(self) -> str | None:
@@ -178,28 +196,57 @@ class WinTaxClient:
         params: dict[str, str] | None = None,
         data: dict[str, str] | None = None,
     ) -> tuple[str, str]:
-        timeout = aiohttp.ClientTimeout(total=HTTP_TIMEOUT_SECONDS)
         try:
-            async with self._session.request(
-                method,
-                url,
-                params=params,
-                data=data,
-                timeout=timeout,
-                allow_redirects=True,
-                headers={"Accept": "text/html,application/xhtml+xml"},
-            ) as response:
-                if response.status in (401, 403):
-                    raise WinTaxAuthError(f"WinTax returned HTTP {response.status}")
-                if response.status >= 400:
-                    raise WinTaxConnectionError(f"WinTax returned HTTP {response.status}")
-                raw = await response.read()
-                html = _decode_html(raw, response.charset)
-                return str(response.url), html
+            return await self._send(method, url, params=params, data=data, ssl=self._ssl)
+        except aiohttp.ClientConnectorCertificateError as err:
+            if self._ssl is False:
+                raise WinTaxConnectionError(_connector_message(err)) from err
+            _LOGGER.warning(
+                "WinTax TLS verification failed (%s); retrying without certificate checking",
+                err,
+            )
+            self._ssl = False
+            self._ssl_fallback_used = True
+            try:
+                return await self._send(
+                    method, url, params=params, data=data, ssl=False
+                )
+            except (TimeoutError, asyncio.TimeoutError) as retry_err:
+                raise WinTaxConnectionError("WinTax request timed out") from retry_err
+            except aiohttp.ClientError as retry_err:
+                raise WinTaxConnectionError(_connector_message(retry_err)) from retry_err
         except (TimeoutError, asyncio.TimeoutError) as err:
             raise WinTaxConnectionError("WinTax request timed out") from err
         except aiohttp.ClientError as err:
-            raise WinTaxConnectionError("Could not connect to WinTax") from err
+            raise WinTaxConnectionError(_connector_message(err)) from err
+
+    async def _send(
+        self,
+        method: str,
+        url: str,
+        *,
+        params: dict[str, str] | None,
+        data: dict[str, str] | None,
+        ssl: ssl.SSLContext | bool,
+    ) -> tuple[str, str]:
+        timeout = aiohttp.ClientTimeout(total=HTTP_TIMEOUT_SECONDS)
+        async with self._session.request(
+            method,
+            url,
+            params=params,
+            data=data,
+            timeout=timeout,
+            allow_redirects=True,
+            ssl=ssl,
+            headers={"Accept": "text/html,application/xhtml+xml"},
+        ) as response:
+            if response.status in (401, 403):
+                raise WinTaxAuthError(f"WinTax returned HTTP {response.status}")
+            if response.status >= 400:
+                raise WinTaxConnectionError(f"WinTax returned HTTP {response.status}")
+            raw = await response.read()
+            html = _decode_html(raw, response.charset)
+            return str(response.url), html
 
     def __repr__(self) -> str:
         return f"WinTaxClient(base_url={self._base_url!r})"
@@ -208,6 +255,12 @@ class WinTaxClient:
 def redact_url(url: str) -> str:
     """Strip session ids and passwords from a URL before logging."""
     return _REDACT_RE.sub(r"\1[redacted]", url)
+
+
+def _connector_message(err: BaseException) -> str:
+    """Human-readable connection error without request URLs or secrets."""
+    message = str(err).strip() or err.__class__.__name__
+    return f"Could not connect to WinTax ({message})"
 
 
 def _wintax_date(value: date) -> str:

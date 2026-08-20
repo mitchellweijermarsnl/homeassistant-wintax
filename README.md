@@ -30,6 +30,22 @@ The selected ride is, in order: the currently active ride, else the next upcomin
 
 Ride attributes include trip id, times, origin, destination, passenger **count**, and tracking availability. Passenger names are not exposed.
 
+## Troubleshooting
+
+### Could not connect to the WinTax portal
+
+The portal listens on **TCP port 40083**. Home Assistant must be allowed to reach `uvovervoer.customer.wintax.nl:40083`.
+
+The server also sends an incomplete TLS certificate chain. This integration ships the missing Sectigo intermediate and retries if verification still fails. After updating the integration, restart Home Assistant and try again.
+
+Enable debug logging to see the underlying error (session ids are redacted):
+
+```yaml
+logger:
+  logs:
+    custom_components.wintax: debug
+```
+
 ## Tests
 
 From the repository root (requires `beautifulsoup4` and `pytest`):

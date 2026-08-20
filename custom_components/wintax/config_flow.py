@@ -48,7 +48,7 @@ async def _validate_credentials(
     hass: HomeAssistant, username: str, password: str
 ) -> None:
     """Log in and fetch today's rides to confirm the account works."""
-    session = async_get_clientsession(hass)
+    session = async_get_clientsession(hass, verify_ssl=False)
     client = WinTaxClient(session, username, password, base_url=DEFAULT_BASE_URL)
     await client.async_login()
     today = dt_util.now().date()
@@ -76,7 +76,8 @@ class WinTaxConfigFlow(ConfigFlow, domain=DOMAIN):
                 await _validate_credentials(self.hass, username, password)
             except WinTaxAuthError:
                 errors["base"] = "invalid_auth"
-            except WinTaxConnectionError:
+            except WinTaxConnectionError as err:
+                _LOGGER.warning("Could not connect to WinTax: %s", err)
                 errors["base"] = "cannot_connect"
             except Exception:
                 _LOGGER.exception("Unexpected exception during WinTax setup")
@@ -124,7 +125,8 @@ class WinTaxConfigFlow(ConfigFlow, domain=DOMAIN):
                 await _validate_credentials(self.hass, username, password)
             except WinTaxAuthError:
                 errors["base"] = "invalid_auth"
-            except WinTaxConnectionError:
+            except WinTaxConnectionError as err:
+                _LOGGER.warning("Could not connect to WinTax during reauth: %s", err)
                 errors["base"] = "cannot_connect"
             except Exception:
                 _LOGGER.exception("Unexpected exception during WinTax reauth")

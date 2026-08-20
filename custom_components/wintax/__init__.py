@@ -24,7 +24,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     from .const import DEFAULT_BASE_URL, DEFAULT_SCAN_INTERVAL
     from .coordinator import WinTaxCoordinator
 
-    session = async_get_clientsession(hass)
+    # The WinTax server omits its TLS intermediate; use HA's non-verifying
+    # session and let WinTaxClient attach a context that includes that CA.
+    session = async_get_clientsession(hass, verify_ssl=False)
     client = WinTaxClient(
         session,
         entry.data[CONF_USERNAME],

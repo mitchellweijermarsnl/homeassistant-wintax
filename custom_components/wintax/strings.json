@@ -20,7 +20,7 @@
     },
     "error": {
       "invalid_auth": "Invalid username or password.",
-      "cannot_connect": "Could not connect to the WinTax portal.",
+      "cannot_connect": "Could not connect to the WinTax portal. Check that Home Assistant can reach it on port 40083, then see the Home Assistant log.",
       "unknown": "Unexpected error."
     },
     "abort": {

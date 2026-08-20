@@ -12,6 +12,7 @@ from custom_components.wintax.api import (
     WinTaxAuthError,
     WinTaxClient,
     _decode_html,
+    create_wintax_ssl_context,
     redact_url,
 )
 from custom_components.wintax.parser import extract_session_id, is_login_page
@@ -126,6 +127,29 @@ def test_fetch_rides_sends_date_params() -> None:
     assert params["ed"] == "31-08-2026"
     assert params["ec"] == "0"
     assert params["sessionid"] == "testsession"
+
+
+def test_create_ssl_context_loads_intermediate() -> None:
+    context = create_wintax_ssl_context()
+    assert context.verify_mode == __import__("ssl").CERT_REQUIRED
+    assert context.minimum_version == __import__("ssl").TLSVersion.TLSv1_2
+
+
+def test_requests_pass_ssl_context() -> None:
+    login_html = load_fixture("login.html")
+    rides_html = load_fixture("rides.html")
+    session = _FakeSession(
+        [
+            _FakeResponse("https://example/client/user.wts?m=login", login_html),
+            _FakeResponse(
+                "https://example/client/index.wts?sessionid=testsession",
+                rides_html,
+            ),
+        ]
+    )
+    client = WinTaxClient(session, "user@example.com", "secret", base_url="https://example")  # type: ignore[arg-type]
+    asyncio.run(client.async_login())
+    assert "ssl" in session.calls[0][2]
 
 
 def test_is_login_page_helper() -> None:
