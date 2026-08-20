@@ -1,0 +1,67 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "WinTax",
+        "description": "Enter the username and password for your WinTax customer portal account.",
+        "data": {
+          "username": "Username",
+          "password": "Password",
+          "scan_interval": "Update interval (seconds)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate WinTax",
+        "description": "Password for {username} is no longer valid. Enter a new password.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid username or password.",
+      "cannot_connect": "Could not connect to the WinTax portal.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This WinTax account is already configured.",
+      "reauth_successful": "Reauthentication successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "WinTax options",
+        "data": {
+          "scan_interval": "Update interval (seconds)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_ride": {
+        "name": "Next ride"
+      },
+      "next_ride_start": {
+        "name": "Next ride start"
+      },
+      "next_ride_end": {
+        "name": "Next ride end"
+      },
+      "ride_status": {
+        "name": "Ride status"
+      }
+    },
+    "binary_sensor": {
+      "tracking_available": {
+        "name": "Tracking available"
+      }
+    },
+    "device_tracker": {
+      "vehicle": {
+        "name": "Vehicle"
+      }
+    }
+  }
+}

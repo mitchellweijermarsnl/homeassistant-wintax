@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head><title>UVO Vervoer klantoverzicht</title></head>
+<body>
+<div class="navbar"><a class="brand" href="index.wts?sessionid=testsession">UVO Vervoer klantoverzicht</a>
+<ul class="nav"><li><a href="user.wts?m=logout&amp;sessionid=testsession">Uitloggen</a></li></ul></div>
+<form id="dateform" name="dateform" method="post" action="index.wts?sessionid=testsession">
+<input type="text" id="sd" name="sd" value="01-08-2026">
+<input type="text" id="ed" name="ed" value="31-08-2026">
+<input id="q" name="q" value="">
+</form>
+<form id="datatable" name="datatable" method="post">
+<table class="table" id="maintrips">
+<thead><tr><th></th><th>Geannuleerd</th></tr></thead>
+<tr>
+<td>
+<i class="icon-time"></i> <small>17-08-2026 07:08 - 08:28</small>
+<i class="icon-user"></i> <small>Doe, Jane [LLV] (V) Jane Doe (1 pax) LLV</small>
+<i class="icon-shopping-cart"></i> <small>3285 dm</small>
+<div class="pull-right">
+<span class="label"><small>Samenstelling</small></span>
+<span class="label"><small>Starttijd 07:12</small></span>
+<span class="label"><small>Eindtijd 08:12</small></span>
+</div>
+<br>Voorbeeldstraat 1 (9999AA) <i class="icon-arrow-right"></i> School Voorbeeld (9999BB) (1 pax, 1 ritten, SCH 100)
+<ul class="nav nav-pills">
+<li><a href="mailto:example@example.com?subject=Rit%20nummer%201001"><small>E-mail over</small></a></li>
+</ul>
+<td style="text-align:center;"><INPUT class=checkbox TYPE="checkbox" NAME="cancel" VALUE="1001" disabled></td>
+</tr>
+<tr>
+<td>
+<i class="icon-time"></i> <small>17-08-2026 14:01 - 15:04</small>
+<i class="icon-user"></i> <small>Doe, Jane [LLV] (V) Jane Doe (1 pax) LLV</small>
+<div class="pull-right">
+<span class="label"><small>Samenstelling</small></span>
+<span class="label"><small>Starttijd 14:12</small></span>
+<span class="label"><small>Eindtijd 15:16</small></span>
+<span class="label"><small>Retour</small></span>
+</div>
+<br>School Voorbeeld (9999BB) <i class="icon-arrow-right"></i> Voorbeeldstraat 1 (9999AA) (1 pax, 1 ritten, SCH 100 Retour)
+<ul class="nav nav-pills">
+<li><a href="mailto:example@example.com?subject=Rit%20nummer%201002"><small>E-mail over</small></a></li>
+</ul>
+<td><INPUT class=checkbox TYPE="checkbox" NAME="cancel" VALUE="1002" disabled></td>
+</tr>
+<tr>
+<td>
+<i class="icon-time"></i> <small>20-08-2026 14:01 - 15:04</small>
+<i class="icon-user"></i> <small>Doe, Jane [LLV] (V) Jane Doe (1 pax) LLV</small>
+<div class="pull-right">
+<span class="label"><small>Samenstelling</small></span>
+<span class="label" style="background-color:#c07f00;"><small>Onderweg naar klant</small></span>
+<span class="label"><small>Berekende voorrijtijd 13:48</small></span>
+<span class="label"><small>Retour</small></span>
+</div>
+<br>School Voorbeeld (9999BB) <i class="icon-arrow-right"></i> Voorbeeldstraat 1 (9999AA) (1 pax, 1 ritten, SCH 100 Retour)
+<ul class="nav nav-pills">
+<li><a href="mailto:example@example.com?subject=Rit%20nummer%201003"><small>E-mail over</small></a></li>
+<li><a href="map.wts?tripid=1003&amp;sessionid=testsession"><small>Tracking &amp; Tracing</small></a></li>
+</ul>
+<td><INPUT class=checkbox TYPE="checkbox" NAME="cancel" VALUE="1003" disabled></td>
+</tr>
+<tr>
+<td>
+<i class="icon-time"></i> <small>21-08-2026 07:08 - 08:28</small>
+<i class="icon-user"></i> <small>Doe, Jane [LLV] (V) Jane Doe (1 pax) LLV</small>
+<div class="pull-right">
+<span class="label"><small>Samenstelling</small></span>
+<span class="label" style="background-color:#00007f;"><small>Automatisch verzenden</small></span>
+</div>
+<br>Voorbeeldstraat 1 (9999AA) <i class="icon-arrow-right"></i> School Voorbeeld (9999BB) (1 pax, 1 ritten, SCH 100)
+<ul class="nav nav-pills">
+<li><a href="mailto:example@example.com?subject=Rit%20nummer%201004"><small>E-mail over</small></a></li>
+</ul>
+<td><INPUT class=checkbox TYPE="checkbox" NAME="cancel" VALUE="1004"></td>
+</tr>
+<tr>
+<td>
+<i class="icon-time"></i> <small>24-08-2026 07:08 - 08:28</small>
+<i class="icon-user"></i> <small>Doe, Jane [LLV] (V) Jane Doe (1 pax) LLV</small>
+<div class="pull-right">
+<span class="label"><small>Samenstelling</small></span>
+</div>
+<br>Voorbeeldstraat 1 (9999AA) <i class="icon-arrow-right"></i> School Voorbeeld (9999BB) (1 pax, 1 ritten, SCH 100)
+<ul class="nav nav-pills">
+<li><a href="mailto:example@example.com?subject=Rit%20nummer%201005"><small>E-mail over</small></a></li>
+</ul>
+<td><INPUT class=checkbox TYPE="checkbox" NAME="cancel" VALUE="1005"></td>
+</tr>
+<tr><td></td><td><input type="button" value="Bijwerken" id="updatecancel"></td></tr>
+</table>
+<p><small>5 rit(ten) en 0 samenstelling(en) gevonden</small></p>
+</form>
+</body>
+</html>
