@@ -6,6 +6,17 @@ This integration is **read-only**. It does not cancel rides, change bookings, ex
 
 ## Install
 
+### HACS (recommended)
+
+1. In HACS go to **Custom repositories**.
+2. Add `mitchellweijermarsnl/homeassistant-wintax` as category **Integration** (not plugin, theme, or add-on).
+3. Download **WinTax**, then restart Home Assistant.
+4. Go to **Settings → Devices & services → Add integration** and search for **WinTax**.
+
+If a previous add failed with `custom_components/None/manifest.json`, remove the custom repository first, restart Home Assistant, then add it again as **Integration**.
+
+### Manual
+
 1. Copy `custom_components/wintax` into your Home Assistant `config/custom_components/` directory.
 2. Restart Home Assistant.
 3. Go to **Settings → Devices & services → Add integration** and search for **WinTax**.
@@ -19,8 +30,6 @@ Polling is limited to **weekdays** in two windows (Europe/Amsterdam):
 - 14:00–15:30
 
 During those windows the portal is queried every **10 seconds**. Outside those times there are no WinTax requests. Change the windows under **Settings → Devices & services → WinTax → Configure**.
-
-You can also add this repository as a custom HACS integration if you use HACS.
 
 ## Entities
 
