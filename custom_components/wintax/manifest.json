@@ -8,5 +8,5 @@
   "iot_class": "cloud_polling",
   "loggers": ["custom_components.wintax"],
   "requirements": ["beautifulsoup4==4.13.4"],
-  "version": "1.0.0"
+  "version": "1.0.1"
 }
