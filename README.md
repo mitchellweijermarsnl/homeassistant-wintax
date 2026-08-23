@@ -9,9 +9,16 @@ This integration is **read-only**. It does not cancel rides, change bookings, ex
 1. Copy `custom_components/wintax` into your Home Assistant `config/custom_components/` directory.
 2. Restart Home Assistant.
 3. Go to **Settings → Devices & services → Add integration** and search for **WinTax**.
-4. Enter your WinTax username and password. Optionally set the update interval (default 60 seconds, minimum 30).
+4. Enter your WinTax username and password.
 
 Credentials are stored in a Home Assistant config entry. They are never written into Python source files.
+
+Polling is limited to **weekdays** in two windows (Europe/Amsterdam):
+
+- 06:30–08:30
+- 14:00–15:30
+
+During those windows the portal is queried every **10 seconds**. Outside those times there are no WinTax requests. Change the windows under **Settings → Devices & services → WinTax → Configure**.
 
 You can also add this repository as a custom HACS integration if you use HACS.
 

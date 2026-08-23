@@ -1,0 +1,72 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "WinTax",
+        "description": "Voer de gebruikersnaam en het wachtwoord van je WinTax-klantportaal in.",
+        "data": {
+          "username": "Gebruikersnaam",
+          "password": "Wachtwoord"
+        }
+      },
+      "reauth_confirm": {
+        "title": "WinTax opnieuw aanmelden",
+        "description": "Het wachtwoord voor {username} is niet meer geldig. Voer een nieuw wachtwoord in.",
+        "data": {
+          "password": "Wachtwoord"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Ongeldige gebruikersnaam of wachtwoord.",
+      "cannot_connect": "Kan geen verbinding maken met het WinTax-portaal. Controleer of Home Assistant poort 40083 kan bereiken en kijk in het logboek.",
+      "unknown": "Onverwachte fout."
+    },
+    "abort": {
+      "already_configured": "Dit WinTax-account is al geconfigureerd.",
+      "reauth_successful": "Opnieuw aanmelden is gelukt."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "WinTax polling",
+        "description": "WinTax wordt alleen opgehaald op weekdagen tijdens de ophaal- en brengvensters. Daarbuiten wordt het portaal niet benaderd.",
+        "data": {
+          "poll_interval": "Interval tijdens vensters (seconden)",
+          "weekdays_only": "Alleen weekdagen (maandag–vrijdag)",
+          "morning_start": "Ochtendvenster van",
+          "morning_end": "Ochtendvenster tot",
+          "afternoon_start": "Middagvenster van",
+          "afternoon_end": "Middagvenster tot"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_ride": {
+        "name": "Volgende rit"
+      },
+      "next_ride_start": {
+        "name": "Volgende rit start"
+      },
+      "next_ride_end": {
+        "name": "Volgende rit einde"
+      },
+      "ride_status": {
+        "name": "Ritstatus"
+      }
+    },
+    "binary_sensor": {
+      "tracking_available": {
+        "name": "Tracking beschikbaar"
+      }
+    },
+    "device_tracker": {
+      "vehicle": {
+        "name": "Voertuig"
+      }
+    }
+  }
+}

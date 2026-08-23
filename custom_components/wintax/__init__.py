@@ -15,13 +15,11 @@ PLATFORMS = ["binary_sensor", "device_tracker", "sensor"]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up WinTax from a config entry."""
-    from datetime import timedelta
-
-    from homeassistant.const import CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_USERNAME
+    from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
     from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
     from .api import WinTaxClient
-    from .const import DEFAULT_BASE_URL, DEFAULT_SCAN_INTERVAL
+    from .const import DEFAULT_BASE_URL
     from .coordinator import WinTaxCoordinator
 
     # The WinTax server omits its TLS intermediate; use HA's non-verifying
@@ -34,15 +32,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         base_url=DEFAULT_BASE_URL,
     )
 
-    scan_seconds = entry.options.get(
-        CONF_SCAN_INTERVAL, int(DEFAULT_SCAN_INTERVAL.total_seconds())
-    )
-    coordinator = WinTaxCoordinator(
-        hass,
-        entry,
-        client,
-        update_interval=timedelta(seconds=scan_seconds),
-    )
+    coordinator = WinTaxCoordinator(hass, entry, client)
     await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = coordinator

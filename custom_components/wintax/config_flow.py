@@ -13,18 +13,36 @@ from homeassistant.config_entries import (
     ConfigFlowResult,
     OptionsFlow,
 )
-from homeassistant.const import CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_USERNAME
+from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import (
+    BooleanSelector,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+    TimeSelector,
+)
 from homeassistant.util import dt as dt_util
 
 from .api import WinTaxAuthError, WinTaxClient, WinTaxConnectionError
 from .const import (
+    CONF_AFTERNOON_END,
+    CONF_AFTERNOON_START,
+    CONF_MORNING_END,
+    CONF_MORNING_START,
+    CONF_POLL_INTERVAL,
+    CONF_WEEKDAYS_ONLY,
+    DEFAULT_AFTERNOON_END,
+    DEFAULT_AFTERNOON_START,
     DEFAULT_BASE_URL,
-    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_MORNING_END,
+    DEFAULT_MORNING_START,
+    DEFAULT_POLL_INTERVAL_SECONDS,
+    DEFAULT_WEEKDAYS_ONLY,
     DOMAIN,
-    MAX_SCAN_INTERVAL_SECONDS,
-    MIN_SCAN_INTERVAL_SECONDS,
+    MAX_POLL_INTERVAL_SECONDS,
+    MIN_POLL_INTERVAL_SECONDS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,15 +51,59 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): str,
         vol.Required(CONF_PASSWORD): str,
-        vol.Optional(
-            CONF_SCAN_INTERVAL,
-            default=int(DEFAULT_SCAN_INTERVAL.total_seconds()),
-        ): vol.All(
-            vol.Coerce(int),
-            vol.Range(min=MIN_SCAN_INTERVAL_SECONDS, max=MAX_SCAN_INTERVAL_SECONDS),
-        ),
     }
 )
+
+
+def default_poll_options() -> dict[str, Any]:
+    """Return the default weekday pickup/drop-off poll schedule."""
+    return {
+        CONF_POLL_INTERVAL: DEFAULT_POLL_INTERVAL_SECONDS,
+        CONF_WEEKDAYS_ONLY: DEFAULT_WEEKDAYS_ONLY,
+        CONF_MORNING_START: DEFAULT_MORNING_START,
+        CONF_MORNING_END: DEFAULT_MORNING_END,
+        CONF_AFTERNOON_START: DEFAULT_AFTERNOON_START,
+        CONF_AFTERNOON_END: DEFAULT_AFTERNOON_END,
+    }
+
+
+def _options_schema(current: dict[str, Any]) -> vol.Schema:
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_POLL_INTERVAL,
+                default=current.get(CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL_SECONDS),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=MIN_POLL_INTERVAL_SECONDS,
+                    max=MAX_POLL_INTERVAL_SECONDS,
+                    step=1,
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="seconds",
+                )
+            ),
+            vol.Required(
+                CONF_WEEKDAYS_ONLY,
+                default=current.get(CONF_WEEKDAYS_ONLY, DEFAULT_WEEKDAYS_ONLY),
+            ): BooleanSelector(),
+            vol.Required(
+                CONF_MORNING_START,
+                default=current.get(CONF_MORNING_START, DEFAULT_MORNING_START),
+            ): TimeSelector(),
+            vol.Required(
+                CONF_MORNING_END,
+                default=current.get(CONF_MORNING_END, DEFAULT_MORNING_END),
+            ): TimeSelector(),
+            vol.Required(
+                CONF_AFTERNOON_START,
+                default=current.get(CONF_AFTERNOON_START, DEFAULT_AFTERNOON_START),
+            ): TimeSelector(),
+            vol.Required(
+                CONF_AFTERNOON_END,
+                default=current.get(CONF_AFTERNOON_END, DEFAULT_AFTERNOON_END),
+            ): TimeSelector(),
+        }
+    )
 
 
 async def _validate_credentials(
@@ -89,12 +151,7 @@ class WinTaxConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_USERNAME: username,
                         CONF_PASSWORD: password,
                     },
-                    options={
-                        CONF_SCAN_INTERVAL: user_input.get(
-                            CONF_SCAN_INTERVAL,
-                            int(DEFAULT_SCAN_INTERVAL.total_seconds()),
-                        )
-                    },
+                    options=default_poll_options(),
                 )
 
         return self.async_show_form(
@@ -152,29 +209,18 @@ class WinTaxConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class WinTaxOptionsFlow(OptionsFlow):
-    """Handle WinTax options."""
+    """Handle WinTax poll-window options."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Manage the WinTax options."""
+        """Manage the weekday pickup/drop-off poll schedule."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            merged = {**default_poll_options(), **user_input}
+            return self.async_create_entry(title="", data=merged)
 
-        current = self.config_entry.options.get(
-            CONF_SCAN_INTERVAL, int(DEFAULT_SCAN_INTERVAL.total_seconds())
-        )
+        current = {**default_poll_options(), **self.config_entry.options}
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_SCAN_INTERVAL, default=current): vol.All(
-                        vol.Coerce(int),
-                        vol.Range(
-                            min=MIN_SCAN_INTERVAL_SECONDS,
-                            max=MAX_SCAN_INTERVAL_SECONDS,
-                        ),
-                    )
-                }
-            ),
+            data_schema=_options_schema(current),
         )

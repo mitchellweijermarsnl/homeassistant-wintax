@@ -73,10 +73,13 @@ class WinTaxNextRideSensor(WinTaxEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return structured ride details without passenger names."""
+        attrs: dict[str, Any] = {}
+        if self.coordinator.data is not None:
+            attrs["polling_active"] = self.coordinator.data.polling_active
         ride = self.ride
-        if ride is None:
-            return {}
-        return _ride_attributes(ride)
+        if ride is not None:
+            attrs.update(_ride_attributes(ride))
+        return attrs
 
 
 class WinTaxTimestampSensor(WinTaxEntity, SensorEntity):

@@ -6,8 +6,7 @@
         "description": "Enter the username and password for your WinTax customer portal account.",
         "data": {
           "username": "Username",
-          "password": "Password",
-          "scan_interval": "Update interval (seconds)"
+          "password": "Password"
         }
       },
       "reauth_confirm": {
@@ -31,9 +30,15 @@
   "options": {
     "step": {
       "init": {
-        "title": "WinTax options",
+        "title": "WinTax polling",
+        "description": "WinTax is only polled on weekdays during the pickup and drop-off windows. Outside those times the portal is not contacted.",
         "data": {
-          "scan_interval": "Update interval (seconds)"
+          "poll_interval": "Interval during windows (seconds)",
+          "weekdays_only": "Weekdays only (Monday–Friday)",
+          "morning_start": "Morning window start",
+          "morning_end": "Morning window end",
+          "afternoon_start": "Afternoon window start",
+          "afternoon_end": "Afternoon window end"
         }
       }
     }
