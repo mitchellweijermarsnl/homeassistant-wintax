@@ -9,5 +9,5 @@
   "issue_tracker": "https://github.com/mitchellweijermarsnl/homeassistant-wintax/issues",
   "loggers": ["custom_components.wintax"],
   "requirements": ["beautifulsoup4==4.13.4"],
-  "version": "1.0.3"
+  "version": "1.0.4"
 }

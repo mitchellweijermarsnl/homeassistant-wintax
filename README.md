@@ -29,7 +29,13 @@ Polling is limited to **weekdays** in two windows (Europe/Amsterdam):
 - 06:30–08:30
 - 14:00–15:30
 
-During those windows the portal is queried every **10 seconds**. Outside those times there are no WinTax requests. Change the windows under **Settings → Devices & services → WinTax → Configure**.
+During those windows the portal is queried every **10 seconds**. Outside those times there are no WinTax requests. Change the windows under **Settings → Devices & services → WinTax → Configure**. The same screen sets how many days of rides are fetched (1 day back, 14 days ahead) and how long a ride that WinTax still marks as on the way stays selected after its end time (45 minutes).
+
+## Near home
+
+**Configure → Near home** opens a map with your home pin and a radius. The vehicle counts as near home when its GPS position is inside that circle. Until you save the map, the pin and radius follow Home Assistant's home zone (100 m if that zone has no radius).
+
+The circle is stored on the WinTax integration. The Home Assistant map still uses your home zone for the tracker's `home` / `not_home` state, so the bus can count as near home before it enters the smaller home zone.
 
 ## Entities
 
@@ -40,6 +46,8 @@ During those windows the portal is queried every **10 seconds**. Outside those t
 | `sensor.wintax_next_ride_end` | Always | Planned or actual end (timestamp) |
 | `sensor.wintax_ride_status` | Always | Exact WinTax status chip, if present |
 | `binary_sensor.wintax_tracking_available` | Always | `on` only when the selected ride has a tracking link **and** usable GPS data |
+| `binary_sensor.wintax_near_home` | Always | `on` when the vehicle GPS position is inside the home circle. Unavailable without GPS |
+| `sensor.wintax_distance_home` | Always | Distance to the home pin, in meters. Unavailable without GPS |
 | `device_tracker.wintax_vehicle` | Only if `map.wts` returns GPS coordinates | Vehicle latitude / longitude |
 
 The selected ride is, in order: the currently active ride, else the next upcoming ride, else the most recent ride.

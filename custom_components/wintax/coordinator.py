@@ -16,12 +16,16 @@ from homeassistant.util import dt as dt_util
 
 from .api import WinTaxAuthError, WinTaxClient, WinTaxError
 from .const import (
+    CONF_ACTIVE_GRACE_MINUTES,
     CONF_AFTERNOON_END,
     CONF_AFTERNOON_START,
     CONF_MORNING_END,
     CONF_MORNING_START,
     CONF_POLL_INTERVAL,
+    CONF_RIDE_LOOKAHEAD_DAYS,
+    CONF_RIDE_LOOKBACK_DAYS,
     CONF_WEEKDAYS_ONLY,
+    DEFAULT_ACTIVE_GRACE_MINUTES,
     DEFAULT_AFTERNOON_END,
     DEFAULT_AFTERNOON_START,
     DEFAULT_MORNING_END,
@@ -30,9 +34,18 @@ from .const import (
     DEFAULT_TIMEZONE,
     DEFAULT_WEEKDAYS_ONLY,
     DOMAIN,
+    MAX_ACTIVE_GRACE_MINUTES,
+    MAX_POLL_INTERVAL_SECONDS,
+    MAX_RIDE_LOOKAHEAD_DAYS,
+    MAX_RIDE_LOOKBACK_DAYS,
+    MIN_ACTIVE_GRACE_MINUTES,
+    MIN_POLL_INTERVAL_SECONDS,
+    MIN_RIDE_LOOKAHEAD_DAYS,
+    MIN_RIDE_LOOKBACK_DAYS,
     RIDE_LOOKAHEAD_DAYS,
     RIDE_LOOKBACK_DAYS,
 )
+from .geo import HomeTarget, distance_meters, resolve_home
 from .parser import Ride, TrackingData, parse_rides, parse_tracking, select_relevant_ride
 from .schedule import (
     PollWindow,
@@ -100,12 +113,91 @@ class WinTaxCoordinator(DataUpdateCoordinator[WinTaxCoordinatorData]):
         )
 
     def _poll_interval(self) -> timedelta:
-        seconds = int(
-            self.config_entry.options.get(
-                CONF_POLL_INTERVAL, DEFAULT_POLL_INTERVAL_SECONDS
-            )
+        seconds = self._option_int(
+            CONF_POLL_INTERVAL,
+            DEFAULT_POLL_INTERVAL_SECONDS,
+            MIN_POLL_INTERVAL_SECONDS,
+            MAX_POLL_INTERVAL_SECONDS,
         )
         return timedelta(seconds=seconds)
+
+    def _ride_lookback_days(self) -> int:
+        return self._option_int(
+            CONF_RIDE_LOOKBACK_DAYS,
+            RIDE_LOOKBACK_DAYS,
+            MIN_RIDE_LOOKBACK_DAYS,
+            MAX_RIDE_LOOKBACK_DAYS,
+        )
+
+    def _ride_lookahead_days(self) -> int:
+        return self._option_int(
+            CONF_RIDE_LOOKAHEAD_DAYS,
+            RIDE_LOOKAHEAD_DAYS,
+            MIN_RIDE_LOOKAHEAD_DAYS,
+            MAX_RIDE_LOOKAHEAD_DAYS,
+        )
+
+    def _active_grace_minutes(self) -> int:
+        return self._option_int(
+            CONF_ACTIVE_GRACE_MINUTES,
+            DEFAULT_ACTIVE_GRACE_MINUTES,
+            MIN_ACTIVE_GRACE_MINUTES,
+            MAX_ACTIVE_GRACE_MINUTES,
+        )
+
+    def _option_int(self, key: str, default: int, low: int, high: int) -> int:
+        raw = self.config_entry.options.get(key, default)
+        try:
+            number = int(raw)
+        except (TypeError, ValueError):
+            return default
+        return min(max(number, low), high)
+
+    def home_target(self) -> HomeTarget | None:
+        """Return the saved home circle, or the Home Assistant home zone."""
+        latitude = self.hass.config.latitude
+        longitude = self.hass.config.longitude
+        radius: float | None = None
+        zone = self.hass.states.get("zone.home")
+        if zone is not None:
+            latitude = zone.attributes.get("latitude", latitude)
+            longitude = zone.attributes.get("longitude", longitude)
+            raw_radius = zone.attributes.get("radius")
+            if isinstance(raw_radius, (int, float)) and not isinstance(raw_radius, bool):
+                radius = float(raw_radius)
+        try:
+            fallback_latitude = float(latitude)
+            fallback_longitude = float(longitude)
+        except (TypeError, ValueError):
+            return resolve_home(
+                self.config_entry.options,
+                fallback_latitude=None,
+                fallback_longitude=None,
+                fallback_radius=None,
+            )
+        return resolve_home(
+            self.config_entry.options,
+            fallback_latitude=fallback_latitude,
+            fallback_longitude=fallback_longitude,
+            fallback_radius=radius,
+        )
+
+    def distance_to_home(self) -> float | None:
+        """Return meters from the vehicle to the home circle, if both are known."""
+        if self.data is None:
+            return None
+        tracking = self.data.tracking
+        if tracking is None or not tracking.has_coordinates:
+            return None
+        home = self.home_target()
+        if home is None or tracking.latitude is None or tracking.longitude is None:
+            return None
+        return distance_meters(
+            home.latitude,
+            home.longitude,
+            tracking.latitude,
+            tracking.longitude,
+        )
 
     def _schedule_next_refresh(self, now: datetime) -> None:
         delay = seconds_until_next_poll(
@@ -142,8 +234,8 @@ class WinTaxCoordinator(DataUpdateCoordinator[WinTaxCoordinatorData]):
                 polling_active=False,
             )
 
-        start = (now - timedelta(days=RIDE_LOOKBACK_DAYS)).date()
-        end = (now + timedelta(days=RIDE_LOOKAHEAD_DAYS)).date()
+        start = (now - timedelta(days=self._ride_lookback_days())).date()
+        end = (now + timedelta(days=self._ride_lookahead_days())).date()
 
         try:
             html = await self.client.async_fetch_rides(start, end)
@@ -155,7 +247,9 @@ class WinTaxCoordinator(DataUpdateCoordinator[WinTaxCoordinatorData]):
         rides = await self.hass.async_add_executor_job(
             partial(parse_rides, html, tz=tz)
         )
-        relevant = select_relevant_ride(rides, now)
+        relevant = select_relevant_ride(
+            rides, now, grace_minutes=self._active_grace_minutes()
+        )
 
         tracking: TrackingData | None = None
         if relevant is not None and relevant.tracking_available and relevant.trip_id:

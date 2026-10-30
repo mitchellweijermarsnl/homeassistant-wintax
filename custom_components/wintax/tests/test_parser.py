@@ -68,6 +68,12 @@ def test_active_ride_onderweg_naar_klant() -> None:
     assert active.is_return is True
     assert active.calculated_pickup == _at(20, 13, 48)
     assert active.is_active(_at(20, 14, 30)) is True
+    # Planned end is 15:04. The default grace keeps the live ride selected
+    # through 15:49 and drops it at 15:50.
+    assert active.is_active(_at(20, 15, 49)) is True
+    assert active.is_active(_at(20, 15, 50)) is False
+    assert active.is_active(_at(20, 15, 10), grace_minutes=0) is False
+    assert active.is_active(_at(20, 15, 4), grace_minutes=0) is True
 
 
 def test_ride_without_tracking() -> None:
@@ -112,6 +118,21 @@ def test_select_active_over_upcoming() -> None:
     assert selected is not None
     assert selected.trip_id == "1003"
     assert selected.status == "Onderweg naar klant"
+
+
+def test_select_respects_grace_minutes() -> None:
+    rides = parse_rides(load_fixture("rides.html"))
+    still_active = select_relevant_ride(rides, _at(20, 15, 49))
+    assert still_active is not None
+    assert still_active.trip_id == "1003"
+
+    dropped = select_relevant_ride(rides, _at(20, 15, 50))
+    assert dropped is not None
+    assert dropped.trip_id == "1004"
+
+    no_grace = select_relevant_ride(rides, _at(20, 15, 10), grace_minutes=0)
+    assert no_grace is not None
+    assert no_grace.trip_id == "1004"
 
 
 def test_select_next_upcoming() -> None:

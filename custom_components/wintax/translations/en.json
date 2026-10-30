@@ -30,17 +30,39 @@
   "options": {
     "step": {
       "init": {
+        "title": "WinTax",
+        "description": "Choose what you want to change.",
+        "menu_options": {
+          "schedule": "Pickup and drop-off windows",
+          "home": "Near home"
+        }
+      },
+      "schedule": {
         "title": "WinTax polling",
-        "description": "WinTax is only polled on weekdays during the pickup and drop-off windows. Outside those times the portal is not contacted.",
+        "description": "WinTax is only polled on weekdays during the pickup and drop-off windows. Outside those times the portal is not contacted. Look-back and look-ahead days control which rides are fetched. A ride that WinTax still marks as on the way stays selected for the grace period after its end time.",
         "data": {
           "poll_interval": "Interval during windows (seconds)",
           "weekdays_only": "Weekdays only (Monday–Friday)",
           "morning_start": "Morning window start",
           "morning_end": "Morning window end",
           "afternoon_start": "Afternoon window start",
-          "afternoon_end": "Afternoon window end"
+          "afternoon_end": "Afternoon window end",
+          "ride_lookback_days": "Days to look back",
+          "ride_lookahead_days": "Days to look ahead",
+          "active_grace_minutes": "Ride stays active after end (minutes)"
+        }
+      },
+      "home": {
+        "title": "Near home",
+        "description": "The vehicle counts as near home when its GPS position is inside this circle. The pin starts on your home zone.",
+        "data": {
+          "home": "Home"
         }
       }
+    },
+    "error": {
+      "invalid_location": "Pick a point on the map.",
+      "invalid_radius": "Radius must be between 10 and 20000 meters."
     }
   },
   "entity": {
@@ -56,11 +78,17 @@
       },
       "ride_status": {
         "name": "Ride status"
+      },
+      "distance_home": {
+        "name": "Distance to home"
       }
     },
     "binary_sensor": {
       "tracking_available": {
         "name": "Tracking available"
+      },
+      "near_home": {
+        "name": "Near home"
       }
     },
     "device_tracker": {

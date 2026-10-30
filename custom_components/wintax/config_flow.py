@@ -18,6 +18,8 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     BooleanSelector,
+    LocationSelector,
+    LocationSelectorConfig,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -27,12 +29,17 @@ from homeassistant.util import dt as dt_util
 
 from .api import WinTaxAuthError, WinTaxClient, WinTaxConnectionError
 from .const import (
+    CONF_ACTIVE_GRACE_MINUTES,
     CONF_AFTERNOON_END,
     CONF_AFTERNOON_START,
+    CONF_HOME,
     CONF_MORNING_END,
     CONF_MORNING_START,
     CONF_POLL_INTERVAL,
+    CONF_RIDE_LOOKAHEAD_DAYS,
+    CONF_RIDE_LOOKBACK_DAYS,
     CONF_WEEKDAYS_ONLY,
+    DEFAULT_ACTIVE_GRACE_MINUTES,
     DEFAULT_AFTERNOON_END,
     DEFAULT_AFTERNOON_START,
     DEFAULT_BASE_URL,
@@ -41,9 +48,18 @@ from .const import (
     DEFAULT_POLL_INTERVAL_SECONDS,
     DEFAULT_WEEKDAYS_ONLY,
     DOMAIN,
+    MAX_ACTIVE_GRACE_MINUTES,
     MAX_POLL_INTERVAL_SECONDS,
+    MAX_RIDE_LOOKAHEAD_DAYS,
+    MAX_RIDE_LOOKBACK_DAYS,
+    MIN_ACTIVE_GRACE_MINUTES,
     MIN_POLL_INTERVAL_SECONDS,
+    MIN_RIDE_LOOKAHEAD_DAYS,
+    MIN_RIDE_LOOKBACK_DAYS,
+    RIDE_LOOKAHEAD_DAYS,
+    RIDE_LOOKBACK_DAYS,
 )
+from .geo import parse_home_option, suggested_home, validate_home
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,8 +71,8 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 )
 
 
-def default_poll_options() -> dict[str, Any]:
-    """Return the default weekday pickup/drop-off poll schedule."""
+def default_options() -> dict[str, Any]:
+    """Return options applied when a field has never been saved."""
     return {
         CONF_POLL_INTERVAL: DEFAULT_POLL_INTERVAL_SECONDS,
         CONF_WEEKDAYS_ONLY: DEFAULT_WEEKDAYS_ONLY,
@@ -64,6 +80,9 @@ def default_poll_options() -> dict[str, Any]:
         CONF_MORNING_END: DEFAULT_MORNING_END,
         CONF_AFTERNOON_START: DEFAULT_AFTERNOON_START,
         CONF_AFTERNOON_END: DEFAULT_AFTERNOON_END,
+        CONF_RIDE_LOOKBACK_DAYS: RIDE_LOOKBACK_DAYS,
+        CONF_RIDE_LOOKAHEAD_DAYS: RIDE_LOOKAHEAD_DAYS,
+        CONF_ACTIVE_GRACE_MINUTES: DEFAULT_ACTIVE_GRACE_MINUTES,
     }
 
 
@@ -102,6 +121,54 @@ def _options_schema(current: dict[str, Any]) -> vol.Schema:
                 CONF_AFTERNOON_END,
                 default=current.get(CONF_AFTERNOON_END, DEFAULT_AFTERNOON_END),
             ): TimeSelector(),
+            vol.Required(
+                CONF_RIDE_LOOKBACK_DAYS,
+                default=current.get(CONF_RIDE_LOOKBACK_DAYS, RIDE_LOOKBACK_DAYS),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=MIN_RIDE_LOOKBACK_DAYS,
+                    max=MAX_RIDE_LOOKBACK_DAYS,
+                    step=1,
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="days",
+                )
+            ),
+            vol.Required(
+                CONF_RIDE_LOOKAHEAD_DAYS,
+                default=current.get(CONF_RIDE_LOOKAHEAD_DAYS, RIDE_LOOKAHEAD_DAYS),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=MIN_RIDE_LOOKAHEAD_DAYS,
+                    max=MAX_RIDE_LOOKAHEAD_DAYS,
+                    step=1,
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="days",
+                )
+            ),
+            vol.Required(
+                CONF_ACTIVE_GRACE_MINUTES,
+                default=current.get(
+                    CONF_ACTIVE_GRACE_MINUTES, DEFAULT_ACTIVE_GRACE_MINUTES
+                ),
+            ): NumberSelector(
+                NumberSelectorConfig(
+                    min=MIN_ACTIVE_GRACE_MINUTES,
+                    max=MAX_ACTIVE_GRACE_MINUTES,
+                    step=1,
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement="min",
+                )
+            ),
+        }
+    )
+
+
+def _home_schema(current: dict[str, float]) -> vol.Schema:
+    return vol.Schema(
+        {
+            vol.Required(CONF_HOME, default=current): LocationSelector(
+                LocationSelectorConfig(radius=True, icon="mdi:home")
+            ),
         }
     )
 
@@ -151,7 +218,7 @@ class WinTaxConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_USERNAME: username,
                         CONF_PASSWORD: password,
                     },
-                    options=default_poll_options(),
+                    options=default_options(),
                 )
 
         return self.async_show_form(
@@ -209,18 +276,95 @@ class WinTaxConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class WinTaxOptionsFlow(OptionsFlow):
-    """Handle WinTax poll-window options."""
+    """Handle WinTax options without dropping keys from the other step."""
+
+    def _merged_options(self, updates: dict[str, Any] | None = None) -> dict[str, Any]:
+        merged = {**default_options(), **self.config_entry.options}
+        if updates:
+            merged.update(updates)
+        return merged
+
+    def _home_form_default(self) -> dict[str, float]:
+        stored = parse_home_option(self.config_entry.options.get(CONF_HOME))
+        if stored is not None:
+            return {
+                "latitude": stored.latitude,
+                "longitude": stored.longitude,
+                "radius": stored.radius,
+            }
+        latitude = self.hass.config.latitude
+        longitude = self.hass.config.longitude
+        radius: float | None = None
+        zone = self.hass.states.get("zone.home")
+        if zone is not None:
+            latitude = zone.attributes.get("latitude", latitude)
+            longitude = zone.attributes.get("longitude", longitude)
+            raw_radius = zone.attributes.get("radius")
+            if isinstance(raw_radius, (int, float)) and not isinstance(raw_radius, bool):
+                radius = float(raw_radius)
+        try:
+            fallback_latitude = float(latitude)
+            fallback_longitude = float(longitude)
+        except (TypeError, ValueError):
+            fallback_latitude = None
+            fallback_longitude = None
+        return suggested_home(
+            latitude=fallback_latitude,
+            longitude=fallback_longitude,
+            radius=radius,
+        )
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Choose which settings to change."""
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["schedule", "home"],
+        )
+
+    async def async_step_schedule(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
         """Manage the weekday pickup/drop-off poll schedule."""
         if user_input is not None:
-            merged = {**default_poll_options(), **user_input}
-            return self.async_create_entry(title="", data=merged)
+            cleaned = {
+                **user_input,
+                CONF_POLL_INTERVAL: int(user_input[CONF_POLL_INTERVAL]),
+                CONF_RIDE_LOOKBACK_DAYS: int(user_input[CONF_RIDE_LOOKBACK_DAYS]),
+                CONF_RIDE_LOOKAHEAD_DAYS: int(user_input[CONF_RIDE_LOOKAHEAD_DAYS]),
+                CONF_ACTIVE_GRACE_MINUTES: int(user_input[CONF_ACTIVE_GRACE_MINUTES]),
+            }
+            return self.async_create_entry(title="", data=self._merged_options(cleaned))
 
-        current = {**default_poll_options(), **self.config_entry.options}
+        current = self._merged_options()
         return self.async_show_form(
-            step_id="init",
+            step_id="schedule",
             data_schema=_options_schema(current),
+        )
+
+    async def async_step_home(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Pick the home pin and radius on a map."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            target, error = validate_home(user_input.get(CONF_HOME))
+            if error is not None or target is None:
+                errors["base"] = error or "invalid_location"
+            else:
+                stored = {
+                    "latitude": target.latitude,
+                    "longitude": target.longitude,
+                    "radius": target.radius,
+                }
+                return self.async_create_entry(
+                    title="",
+                    data=self._merged_options({CONF_HOME: stored}),
+                )
+
+        return self.async_show_form(
+            step_id="home",
+            data_schema=_home_schema(self._home_form_default()),
+            errors=errors,
         )

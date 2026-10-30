@@ -5,7 +5,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
+from homeassistant.const import UnitOfLength
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -21,6 +26,7 @@ SENSOR_NEXT_RIDE = "next_ride"
 SENSOR_NEXT_RIDE_START = "next_ride_start"
 SENSOR_NEXT_RIDE_END = "next_ride_end"
 SENSOR_RIDE_STATUS = "ride_status"
+SENSOR_DISTANCE_HOME = "distance_home"
 
 
 async def async_setup_entry(
@@ -46,6 +52,7 @@ async def async_setup_entry(
                 start=False,
             ),
             WinTaxRideStatusSensor(coordinator),
+            WinTaxDistanceHomeSensor(coordinator),
         ]
     )
 
@@ -128,6 +135,42 @@ class WinTaxRideStatusSensor(WinTaxEntity, SensorEntity):
         if ride is None:
             return None
         return ride.status
+
+
+class WinTaxDistanceHomeSensor(WinTaxEntity, SensorEntity):
+    """Distance from the vehicle to the configured home pin, in meters."""
+
+    _attr_device_class = SensorDeviceClass.DISTANCE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfLength.METERS
+    _attr_suggested_display_precision = 0
+
+    def __init__(self, coordinator: WinTaxCoordinator) -> None:
+        super().__init__(coordinator, SENSOR_DISTANCE_HOME)
+        self._attr_name = "Distance to home"
+        self._attr_translation_key = SENSOR_DISTANCE_HOME
+        self._attr_icon = "mdi:map-marker-distance"
+
+    @property
+    def available(self) -> bool:
+        """Stay unavailable without a GPS fix, so a missing position is not 0 m."""
+        return super().available and self.coordinator.distance_to_home() is not None
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the distance in meters, or None when GPS or home is unknown."""
+        return self.coordinator.distance_to_home()
+
+    @property
+    def extra_state_attributes(self) -> dict[str, float | bool]:
+        """Expose the circle size and whether the last poll is still running."""
+        attrs: dict[str, float | bool] = {}
+        home = self.coordinator.home_target()
+        if home is not None:
+            attrs["radius"] = home.radius
+        if self.coordinator.data is not None:
+            attrs["polling_active"] = self.coordinator.data.polling_active
+        return attrs
 
 
 def _ride_attributes(ride: Ride) -> dict[str, Any]:

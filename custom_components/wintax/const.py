@@ -41,11 +41,29 @@ CONF_MORNING_START: Final = "morning_start"
 CONF_MORNING_END: Final = "morning_end"
 CONF_AFTERNOON_START: Final = "afternoon_start"
 CONF_AFTERNOON_END: Final = "afternoon_end"
+CONF_RIDE_LOOKBACK_DAYS: Final = "ride_lookback_days"
+CONF_RIDE_LOOKAHEAD_DAYS: Final = "ride_lookahead_days"
+CONF_ACTIVE_GRACE_MINUTES: Final = "active_grace_minutes"
+CONF_HOME: Final = "home"
 
 # Fetch a window around "now" so we can pick an active, upcoming, or recent ride
 # without requesting the entire month on every poll.
 RIDE_LOOKBACK_DAYS: Final = 1
 RIDE_LOOKAHEAD_DAYS: Final = 14
+MIN_RIDE_LOOKBACK_DAYS: Final = 0
+MAX_RIDE_LOOKBACK_DAYS: Final = 7
+MIN_RIDE_LOOKAHEAD_DAYS: Final = 1
+MAX_RIDE_LOOKAHEAD_DAYS: Final = 31
+
+# How long a live "onderweg" ride stays selected after its end time.
+DEFAULT_ACTIVE_GRACE_MINUTES: Final = 45
+MIN_ACTIVE_GRACE_MINUTES: Final = 0
+MAX_ACTIVE_GRACE_MINUTES: Final = 180
+
+# Circle around home. Used when the home zone has no radius of its own.
+DEFAULT_HOME_RADIUS_METERS: Final = 100
+MIN_HOME_RADIUS_METERS: Final = 10
+MAX_HOME_RADIUS_METERS: Final = 20000
 
 HTTP_TIMEOUT_SECONDS: Final = 30
 

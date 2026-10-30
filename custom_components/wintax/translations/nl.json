@@ -30,17 +30,39 @@
   "options": {
     "step": {
       "init": {
+        "title": "WinTax",
+        "description": "Kies wat je wilt aanpassen.",
+        "menu_options": {
+          "schedule": "Ophaal- en brengvensters",
+          "home": "Dichtbij huis"
+        }
+      },
+      "schedule": {
         "title": "WinTax polling",
-        "description": "WinTax wordt alleen opgehaald op weekdagen tijdens de ophaal- en brengvensters. Daarbuiten wordt het portaal niet benaderd.",
+        "description": "WinTax wordt alleen opgehaald op weekdagen tijdens de ophaal- en brengvensters. Daarbuiten wordt het portaal niet benaderd. Dagen terug en vooruit bepalen welke ritten worden opgehaald. Een rit die WinTax nog als onderweg markeert, blijft zo lang geselecteerd na de eindtijd.",
         "data": {
           "poll_interval": "Interval tijdens vensters (seconden)",
           "weekdays_only": "Alleen weekdagen (maandag–vrijdag)",
           "morning_start": "Ochtendvenster van",
           "morning_end": "Ochtendvenster tot",
           "afternoon_start": "Middagvenster van",
-          "afternoon_end": "Middagvenster tot"
+          "afternoon_end": "Middagvenster tot",
+          "ride_lookback_days": "Dagen terug ophalen",
+          "ride_lookahead_days": "Dagen vooruit ophalen",
+          "active_grace_minutes": "Rit blijft actief na eindtijd (minuten)"
+        }
+      },
+      "home": {
+        "title": "Dichtbij huis",
+        "description": "De bus geldt als dichtbij huis wanneer de GPS-positie binnen deze cirkel valt. De pin staat standaard op je thuiszone.",
+        "data": {
+          "home": "Huis"
         }
       }
+    },
+    "error": {
+      "invalid_location": "Kies een punt op de kaart.",
+      "invalid_radius": "De straal moet tussen 10 en 20000 meter liggen."
     }
   },
   "entity": {
@@ -56,11 +78,17 @@
       },
       "ride_status": {
         "name": "Ritstatus"
+      },
+      "distance_home": {
+        "name": "Afstand tot huis"
       }
     },
     "binary_sensor": {
       "tracking_available": {
         "name": "Tracking beschikbaar"
+      },
+      "near_home": {
+        "name": "Dichtbij huis"
       }
     },
     "device_tracker": {

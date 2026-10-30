@@ -21,6 +21,7 @@ from bs4 import BeautifulSoup, Tag
 
 from .const import (
     ACTIVE_STATUS_KEYWORDS,
+    DEFAULT_ACTIVE_GRACE_MINUTES,
     DEFAULT_TIMEZONE,
     METADATA_LABEL_PREFIXES,
     METADATA_LABELS,
@@ -101,12 +102,18 @@ class Ride:
         lowered = self.status.casefold()
         return any(keyword in lowered for keyword in ACTIVE_STATUS_KEYWORDS)
 
-    def is_active(self, now: datetime) -> bool:
+    def is_active(
+        self,
+        now: datetime,
+        *,
+        grace_minutes: int = DEFAULT_ACTIVE_GRACE_MINUTES,
+    ) -> bool:
         """Return True when this ride is currently in progress.
 
         Live status labels such as "Onderweg naar klant" only count on the
-        ride's own date, and not long after the planned end. Otherwise a
-        monthly HTML snapshot would keep an old in-progress ride selected.
+        ride's own date, and not longer than grace_minutes after the end.
+        Otherwise a monthly HTML snapshot would keep an old in-progress ride
+        selected.
         """
         if self.cancelled:
             return False
@@ -116,7 +123,7 @@ class Ride:
         if self.has_live_status:
             if self.ride_date is not None and self.ride_date != now.date():
                 return False
-            if end is not None and now > end + timedelta(minutes=45):
+            if end is not None and now > end + timedelta(minutes=grace_minutes):
                 return False
             return True
 
@@ -207,7 +214,12 @@ def parse_tracking(html: str, *, trip_id: str | None = None) -> TrackingData | N
     )
 
 
-def select_relevant_ride(rides: Iterable[Ride], now: datetime) -> Ride | None:
+def select_relevant_ride(
+    rides: Iterable[Ride],
+    now: datetime,
+    *,
+    grace_minutes: int = DEFAULT_ACTIVE_GRACE_MINUTES,
+) -> Ride | None:
     """Pick the currently active ride, else the next upcoming, else the most recent."""
     candidates = [ride for ride in rides if not ride.cancelled]
     if not candidates:
@@ -218,7 +230,9 @@ def select_relevant_ride(rides: Iterable[Ride], now: datetime) -> Ride | None:
     timed = [ride for ride in candidates if ride.planned_start is not None]
     pool = timed or candidates
 
-    active = [ride for ride in pool if ride.is_active(now)]
+    active = [
+        ride for ride in pool if ride.is_active(now, grace_minutes=grace_minutes)
+    ]
     if active:
         live = [ride for ride in active if ride.has_live_status]
         return min(live or active, key=_start_sort_key)
